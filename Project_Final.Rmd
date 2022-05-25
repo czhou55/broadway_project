@@ -1,0 +1,168 @@
+---
+title: "The Profitability of Broadway Shows"
+author: "Emie Ung and Christine Zhou"
+date: "25 November 2020"
+output: html_document
+---
+
+```{r setup}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# The Profitability of Broadway Shows
+
+```{r picture}
+# Download  picture of Broadway
+knitr::include_graphics("./Broadway_NY.jpg")
+```
+
+```{r load}
+# Load packages we need
+pacman::p_load(tidyverse, readxl, RColorBrewer, dplyr)
+```
+
+## Description
+
+Data Source: Broadway League ("https://www.broadwayleague.com/research/grosses-broadway-nyc/#weekly_grosses"). This is the weekly grosses and associated data of Broadway shows in NYC filtered from between May 12, 2019 to Sept 1, 2019.
+
+## Exploring the Data
+
+First, let's download the data.
+
+```{r excel}
+#Loading excel file data
+broadway_trend <- read_excel("./Broadway_Grosses.xlsx")
+```
+
+## Summary of Columns in the Data Set
+
+Then, we wanted to explore the data a little bit. We decided to look at some summary data to get a general overview of the profitability of Broadway shows.
+
+```{r summary}
+summary(broadway_trend)
+```
+
+We changed a few of the original column titles to the following:
+
+"GG%GP" -> "gross_profit"
+
+"% Cap" -> "Cap"
+
+**Key:**
+
+"#Prev" - Number of previews (pre-show performances)
+
+"#Perf" - Number of performances
+
+"Grosses\r\nPrev Week" - Grosses from previous week
+
+"Attend" - Number of people who attended
+
+"Cap" - Percent of seats filled
+
+## Structure of the Data Set
+
+```{r structure}
+str(broadway_trend)
+```
+Now we have a better sense of the types of data we're working with.
+
+## Research Questions
+
+**1. What type of show (Play, Musical, or Special) was the best investment?**
+
+Type of show vs grosses - box plot
+
+Average show gross profit vs type of show - density plot
+
+**2. How does the attendance of a show change with time?**
+
+Percentage capacity vs time - line graph
+
+
+## Which Type of Show is the Best Investment?
+
+We now want to arrange the data to get concise information to see which type of show is the best investment in the theater. We want to get rid of shows that have no type, and arrange the rest of the data according to shows and their type.
+
+```{r sort data}
+# Create new data frame for sorted data
+broadway_sorted <- broadway_trend %>%
+  filter(`#Perf` > 0) %>%   # filter out shows with only previews, and no performances
+  select(Type, Show, Grosses) %>% 
+  group_by(Type, Show) %>%
+  summarize(total_shows = n(), mean = mean(Grosses)) %>%
+  mutate(mean_gross = mean/1000000) %>%
+  arrange(desc(mean))
+# Print sorted data frame
+broadway_sorted
+```
+
+This data tells us the individual show grosses, so we can find any outliers. For example, Hamilton's Gross revenue was $3,050,533.70, or over $3 million.
+
+```{r box plot}
+# Plotting Grosses for Types of Show in a Box Plot
+  ggplot(data = broadway_sorted, mapping = aes(x = Type, y = mean_gross, fill = Type)) +
+    scale_fill_brewer(palette = "Dark2") +    
+  geom_boxplot() +
+  labs(title = "Figure 1: Summer 2019 Mean Broadway Grosses",
+       x = "Type of Show",
+       y = "Mean Gross Revenue (millions of dollars)")  +
+theme(legend.title=element_blank())
+```
+
+**Figure 1 interpretation:** From this figure we see that musicals have the largest range in terms of gross revenues of the three types of shows represented. While plays have a slightly larger range than specials, the average gross revenue is lower. One musical has a mean gross revenue greater than $3 million, while no specials or plays have revenue greater than $2 million. From this chart, musicals are the best investment, followed by specials and plays.
+
+Note: We considered a dot plot, but the results were too spread out that we couldn't determine any real data for each variable. In the end, we chose the box plot instead.
+
+```{r gross profit}
+# Plotting Gross Profit Ratio
+broadway_trend %>%
+group_by(Type, Show) %>%
+select(Type, Show, gross_profit) %>%
+summarize(mean_gross_profit_ratio = mean(gross_profit)) %>%
+mutate(mean_gp_ratio = mean_gross_profit_ratio*100) %>%
+
+ggplot() +
+    geom_density(mapping=aes(x=mean_gp_ratio, color=Type), size=1) +
+    scale_color_brewer(palette = "Dark2") +
+labs(title = "Figure 2: Distribution of Gross Profit Ratio for Broadway Summer 2019",
+     x = "Gross Profit Ratio (%)",
+     y = "Proportion of Shows") +    
+theme(legend.title=element_blank())
+
+```
+
+**Figure 2 interpretation:** The range of gross profit ratios is about 25% to 130%. It is more likely that a Broadway musical will have a gross profit ratio anywhere between 50-100%, while a greater proportion of specials and plays have gross profit ratios between 40-80%. Therefore, from this data, we can see that musicals are more profitable.
+
+## How Does the Attendance of a Show Change with Time?
+
+Now we want to see if attendance for shows changed over the summer.
+
+```{r attendance}
+# Plotting Attendance Percentage Averages
+broadway_trend %>%
+select (Type, Show, Cap, `Week End`) %>%
+mutate(percent_capacity = Cap*100) %>%
+  
+# Plot line graph
+ggplot(mapping=aes(x=`Week End`, y=percent_capacity, color=Type, fill=Type)) +
+  scale_color_brewer(palette = "Dark2") +
+  scale_fill_brewer(palette = "Dark2") +
+  geom_smooth(method = "loess") +
+  labs(title = "Figure 3: Broadway Summer 2019 Attendance",
+     x = "Date",
+     y = "Capacity (%)") +    
+theme(legend.title=element_blank())
+```
+
+**Figure 3 interpretation:** We can see that the attendance for specials range much more than for musicals and plays. However, the average capacity for each date was all above 80%. There was a slight increase in percentage capacity for both musicals and plays through the months, but plays had a larger range of percent capacity than musicals.
+
+## Answers to Research Questions
+
+**1. What type of show (Play, Musical, or Special) was the best investment?**
+
+From the data in Figures 1 and 2, it appears that musicals are the best investment. The average gross is the highest for musicals, and the values of Q1 and Q3 are the highest. However, the outliers for gross revenue in musicals may be the cause of the higher values. Since a larger percentage of Broadway musicals seem to have higher gross profit ratios than plays and specials, they also seem to be a better investment in this respect. There are also the most data points for musicals within our data range, so this could be the reason for the slightly higher grosses and higher proportion of musicals with high gross profit ratios.
+
+**2. How does the attendance of a show change with time?**
+
+The general trend for all types of shows is a slight increase in attendance through the summer. However, the attendance for plays seems to have increased the most by percentage point. Attendance for specials fluctuated too much to determine whether there is actually an increase in average capacity but musicals also have a slight increase in percent capacity.
